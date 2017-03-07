@@ -21,16 +21,28 @@ var jsSources = ['./components/js/*.js']; //may need to dictate specific concate
 var sassSources = ['./components/sass/*.scss'];
 var htmlSources = ['./components/**/*.html'];
 
+/***************
+
+Automatically generate service worker with all assets 
+
+***************/
+
 gulp.task('generate-service-worker', function(callback) {
   var path = require('path');
   var swPrecache = require('sw-precache');
   var rootDir = './builds/dev';
 
   swPrecache.write(path.join(rootDir, 'sw.js'), {
-    staticFileGlobs: ['./components' + '/**/*.{js,html,css,png,jpg,gif}'],
+    staticFileGlobs: [rootDir + '/**/*.{js,html,css,png,jpg,gif}'],
     stripPrefix: rootDir
   }, callback);
 });
+
+/**************
+
+Open up browser for builds/dev folder
+
+**************/
 
 gulp.task('browser-sync', function() {
     browserSync.init({
@@ -42,6 +54,12 @@ gulp.task('browser-sync', function() {
     });
 });
 
+/***************
+
+Inject push notification scripts into builds/dev and builds/dist sw.js
+
+***************/
+// Also need to add a script to copy manifest.json to build folders
 gulp.task('sw', function() {
   return gulp.src('./components/sw.js')
   .pipe(replace('[]','[' + filenames.get("all", "relative") + ']'))
@@ -53,15 +71,21 @@ gulp.task('swDist', function() {
   .pipe(gulp.dest('./builds/dist'))
 });
 
+/**************
+
+Lint, concatenate, transpile to es5 and sourcemap js files
+
+**************/
+
 gulp.task('js', function() {
   return gulp.src(jsSources)
+    .pipe(jshint())
+    .pipe(jshint.reporter('default'))
     .pipe(babel({
       presets: ['es2015']
     }))
     .pipe(concat('scripts.js'))
     .pipe(sourcemaps.init({ loadMaps: true }))
-    .pipe(jshint())
-    .pipe(jshint.reporter('default'))
     .pipe(browserify({
       insertGlobals: true
     }))
@@ -82,6 +106,12 @@ gulp.task('jsDist', function() {
     .pipe(gulp.dest('builds/dist/js'))
 });
 
+/**************
+
+Transpile scss to css, lint and autoprefix scss files
+
+**************/
+
 gulp.task('sass', function() {
     return gulp.src(sassSources)
         .pipe(sass().on('error', sass.logError))
@@ -101,6 +131,11 @@ gulp.task('sassDist', function() {
         .pipe(gulp.dest('./builds/dist/css'))
 });
 
+/*************
+
+Minify img files
+
+**************/
 
 gulp.task('imgmin', function() {
     return gulp.src('./components/img/**/*.*')
@@ -113,6 +148,13 @@ gulp.task('imgminDist', function() {
         .pipe(imgmin())
         .pipe(gulp.dest('./builds/dist/img'));
 });
+
+/************
+
+Compile partial html files and front matter into build folders 
+
+*************/
+
 gulp.task('panini', function() {
     return gulp.src('./components/pages/**/*.html')
         .pipe(panini({
@@ -138,6 +180,12 @@ gulp.task('paniniDist', function() {
         .pipe(gulp.dest('./builds/dist'));
 });
 
+/*************
+
+Automatically generate sitemap with all project pages based on URL below
+
+*************/
+
 gulp.task('sitemap', function() {
     return gulp.src('./builds/dist/**/*.html', {
             read: false
@@ -149,12 +197,23 @@ gulp.task('sitemap', function() {
         .pipe(gulp.dest('./builds/dist'));
 });
 
+/*************
+
+Watch all files for changes and update the browser
+
+*************/
 
 gulp.task('watch', function() {
-	gulp.watch(jsSources, ['js']).on('change', browserSync.reload);
-	gulp.watch(sassSources, ['sass']).on('change', browserSync.reload);
+  gulp.watch(jsSources, ['js']).on('change', browserSync.reload);
+  gulp.watch(sassSources, ['sass']).on('change', browserSync.reload);
   gulp.watch(htmlSources, ['panini']).on('change', browserSync.reload);
 });
+
+/**************
+
+Default commands
+
+**************/
 
 gulp.task('default', ['js', 'sass', 'imgmin', 'panini', 'generate-service-worker', 'browser-sync', 'watch']);
 
